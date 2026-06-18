@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
 import { useDocStore } from "../../store/useDocStore";
-import type { Doc } from "../../models/Doc";
+
 import "./PDFCanvas.css";
 
 // The PDF Canvas needs to take a Doc, render its background using pdf.js to a background canvas,
