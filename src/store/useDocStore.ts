@@ -5,9 +5,13 @@ interface DocState {
   doc: Doc | null;
   history: Doc[];
   historyIndex: number;
+  activePage: number;
+  originalPdfBytes: ArrayBuffer | null;
 
   // Actions
-  loadDoc: (doc: Doc) => void;
+  loadDoc: (doc: Doc, bytes: ArrayBuffer) => void;
+  closeDoc: () => void;
+  setActivePage: (page: number) => void;
   updateObject: (pageIndex: number, objectId: string, updates: Partial<SceneObject>) => void;
   addObject: (pageIndex: number, object: SceneObject) => void;
   deleteObject: (pageIndex: number, objectId: string) => void;
@@ -20,13 +24,28 @@ export const useDocStore = create<DocState>((set) => ({
   doc: null,
   history: [],
   historyIndex: -1,
+  activePage: 0,
+  originalPdfBytes: null,
 
-  loadDoc: (doc) =>
+  loadDoc: (doc, bytes) =>
     set({
       doc,
       history: [doc],
       historyIndex: 0,
+      activePage: 0,
+      originalPdfBytes: bytes,
     }),
+
+  closeDoc: () =>
+    set({
+      doc: null,
+      history: [],
+      historyIndex: -1,
+      activePage: 0,
+      originalPdfBytes: null,
+    }),
+
+  setActivePage: (page) => set({ activePage: page }),
 
   updateObject: (pageIndex, objectId, updates) =>
     set((state) => {

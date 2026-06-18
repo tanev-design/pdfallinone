@@ -1,73 +1,92 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import * as fabric from "fabric";
 import { useDocStore } from "../../store/useDocStore";
-
+import * as pdfjsLib from "pdfjs-dist";
 import "./PDFCanvas.css";
 
-// The PDF Canvas needs to take a Doc, render its background using pdf.js to a background canvas,
-// and then instantiate fabric on the foreground canvas.
 export const PDFCanvas: React.FC = () => {
-  const { doc, updateObject } = useDocStore();
+  const { doc, updateObject, activePage, originalPdfBytes } = useDocStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const bgCanvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
 
-  const [activePage] = useState(0);
-
   useEffect(() => {
-    if (!doc || doc.pages.length === 0) return;
-    const page = doc.pages[activePage];
+    if (!doc || doc.pages.length === 0 || !originalPdfBytes) return;
+    const pageModel = doc.pages[activePage];
+
+    let isActive = true;
 
     const initCanvas = async () => {
-      // Setup bg canvas (pdf.js background)
+      // 1. Render actual PDF background
+      const loadingTask = pdfjsLib.getDocument({ data: originalPdfBytes.slice(0) });
+      const pdfDocument = await loadingTask.promise;
+      if (!isActive) return;
+
+      const pdfPage = await pdfDocument.getPage(activePage + 1);
+      const viewport = pdfPage.getViewport({ scale: 1.0 });
+
       const bgCanvas = bgCanvasElRef.current;
       if (!bgCanvas) return;
-      bgCanvas.width = page.width;
-      bgCanvas.height = page.height;
+      bgCanvas.width = viewport.width;
+      bgCanvas.height = viewport.height;
 
-      // In a real app we need to keep the loaded pdf object,
-      // here we assume we have a way to render it, or we skip background rendering for this skeleton
-      // For now, we'll just fill the bg white.
       const ctx = bgCanvas.getContext("2d");
       if (ctx) {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, page.width, page.height);
+        // Render PDF
+        await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
+        if (!isActive) return;
+
+        // Redact original text to prevent ghosting/doubling
+        // We draw white boxes over the original text runs
+        ctx.fillStyle = "white"; // Simple whiteout for now
+        pageModel.objects.forEach((obj) => {
+          if (obj.kind === "text") {
+            const run = obj.runs[0];
+            const top = viewport.height - obj.y - run.size;
+            // A naive bounding box to hide the original text
+            ctx.fillRect(obj.x, top, obj.width, run.size * 1.2);
+          }
+        });
       }
 
-      // Setup fabric canvas
+      // 2. Setup fabric canvas
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose();
       }
 
       const canvasEl = canvasElRef.current;
       if (!canvasEl) return;
-      canvasEl.width = page.width;
-      canvasEl.height = page.height;
+      canvasEl.width = viewport.width;
+      canvasEl.height = viewport.height;
 
       const fCanvas = new fabric.Canvas(canvasEl, {
-        width: page.width,
-        height: page.height,
+        width: viewport.width,
+        height: viewport.height,
         preserveObjectStacking: true,
       });
       fabricCanvasRef.current = fCanvas;
 
       // Populate fabric with text objects
-      page.objects.forEach((obj) => {
+      pageModel.objects.forEach((obj) => {
         if (obj.kind === "text") {
           const run = obj.runs[0];
-          // PDF Origin is Bottom-Left. Fabric Origin is Top-Left.
-          // PDF Y goes up, Fabric Y goes down.
-          const top = page.height - obj.y;
+          
+          // Improved positioning: y is baseline in PDF points.
+          // Fabric 'top' expects the top bounding box. 
+          // For simplicity, we approximate ascent as 80% of font size.
+          const top = viewport.height - obj.y - (run.size * 0.8);
 
           const textObj = new fabric.IText(run.text, {
             left: obj.x,
-            top: top - run.size, // Fabric top is top of bounding box
+            top: top, 
             fontSize: run.size,
             fontFamily: run.fontId,
             fill: `rgb(${run.color.map((c) => c * 255).join(",")})`,
             textAlign: obj.align,
-            data: { id: obj.id }, // store original id to sync back
+            data: { id: obj.id },
+            originX: "left",
+            originY: "top",
           });
           fCanvas.add(textObj);
         }
@@ -77,10 +96,10 @@ export const PDFCanvas: React.FC = () => {
       fCanvas.on("object:modified", (e) => {
         const target = e.target as any;
         if (target && target.data?.id) {
-          // Sync changes
+          // Convert back
           updateObject(activePage, target.data.id, {
             x: target.left,
-            y: page.height - (target.top || 0) - (target.fontSize || 0), // convert back
+            y: viewport.height - (target.top || 0) - ((target.fontSize || 0) * 0.8), 
           });
         }
       });
@@ -89,11 +108,12 @@ export const PDFCanvas: React.FC = () => {
     initCanvas();
 
     return () => {
+      isActive = false;
       if (fabricCanvasRef.current) {
         fabricCanvasRef.current.dispose();
       }
     };
-  }, [doc, activePage, updateObject]);
+  }, [doc, activePage, originalPdfBytes, updateObject]);
 
   if (!doc) {
     return <div className="pdf-empty-state">Load a PDF to start editing</div>;
@@ -102,12 +122,10 @@ export const PDFCanvas: React.FC = () => {
   return (
     <div className="pdf-canvas-container" ref={containerRef}>
       <div className="pdf-canvas-wrapper" style={{ position: "relative" }}>
-        {/* Background layer for untouchable vectors and images */}
         <canvas
           ref={bgCanvasElRef}
           style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
         />
-        {/* Fabric layer for interactive objects */}
         <canvas
           ref={canvasElRef}
           style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
