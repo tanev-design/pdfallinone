@@ -13,7 +13,7 @@ export const LayersPanel: React.FC = () => {
       <h3 style={{ margin: "0 0 10px 0", fontSize: "14px", textTransform: "uppercase", color: "#666" }}>Layers</h3>
       <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
         {objects.map((obj) => {
-          let label = obj.kind;
+          let label: string = obj.kind;
           if (obj.kind === "text") {
             const textContent = (obj as any).runs[0]?.text.trim() || "Empty Text";
             label = `T: ${textContent.substring(0, 20)}${textContent.length > 20 ? "..." : ""}`;
