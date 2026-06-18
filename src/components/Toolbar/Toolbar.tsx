@@ -11,7 +11,8 @@ export const Toolbar: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const buffer = await file.arrayBuffer();
-      const newDoc = await parsePdf(buffer);
+      // Pass a copy (slice) of the buffer so pdf.js doesn't detach the main buffer
+      const newDoc = await parsePdf(buffer.slice(0));
       loadDoc(newDoc, buffer);
     }
   };
