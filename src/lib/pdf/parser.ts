@@ -3,7 +3,7 @@ import * as pdfjsLib from 'pdfjs-dist';
 // or use the standard public CDN as fallback.
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
 
-import { Doc, Page, TextObject, TextRun, FontRecord } from '../../models/Doc';
+import type { Doc, TextObject, TextRun, FontRecord } from '../../models/Doc';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 

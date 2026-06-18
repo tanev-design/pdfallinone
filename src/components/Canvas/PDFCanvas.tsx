@@ -1,8 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as fabric from "fabric";
 import { useDocStore } from "../../store/useDocStore";
-import { TextObject, Doc } from "../../models/Doc";
-import * as pdfjsLib from "pdfjs-dist";
+import type { Doc } from "../../models/Doc";
 import "./PDFCanvas.css";
 
 // The PDF Canvas needs to take a Doc, render its background using pdf.js to a background canvas,
@@ -14,7 +13,7 @@ export const PDFCanvas: React.FC = () => {
   const bgCanvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
 
-  const [activePage, setActivePage] = useState(0);
+  const [activePage] = useState(0);
 
   useEffect(() => {
     if (!doc || doc.pages.length === 0) return;
@@ -76,7 +75,7 @@ export const PDFCanvas: React.FC = () => {
 
       // Listen for text editing / movement to sync back to store
       fCanvas.on("object:modified", (e) => {
-        const target = e.target as fabric.IText;
+        const target = e.target as any;
         if (target && target.data?.id) {
           // Sync changes
           updateObject(activePage, target.data.id, {

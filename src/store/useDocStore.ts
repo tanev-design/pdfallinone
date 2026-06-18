@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Doc, Page, SceneObject } from "../models/Doc";
+import type { Doc, SceneObject } from "../models/Doc";
 
 interface DocState {
   doc: Doc | null;

@@ -1,6 +1,6 @@
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
-import { Doc } from "../../models/Doc";
+import type { Doc } from "../../models/Doc";
 
 export async function exportPdf(originalPdfBytes: ArrayBuffer, doc: Doc): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.load(originalPdfBytes);
@@ -14,7 +14,6 @@ export async function exportPdf(originalPdfBytes: ArrayBuffer, doc: Doc): Promis
   for (let i = 0; i < doc.pages.length; i++) {
     const pageModel = doc.pages[i];
     const pdfPage = pdfDoc.getPage(i);
-    const { height } = pdfPage.getSize();
 
     for (const obj of pageModel.objects) {
       if (obj.kind === "text") {

@@ -1,4 +1,4 @@
-import { FontRecord, MetricOverrides } from "../../models/Doc";
+import type { FontRecord, MetricOverrides } from "../../models/Doc";
 
 // Fallback logic and metric overrides
 export function resolveFont(fontId: string, family: string): FontRecord {

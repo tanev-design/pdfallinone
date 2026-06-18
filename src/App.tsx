@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { PDFCanvas } from './components/Canvas/PDFCanvas';
 import { LayersPanel } from './components/Sidebar/LayersPanel';
