@@ -105,13 +105,13 @@ export const PDFCanvas: React.FC = () => {
       });
 
       // --- PAN & ZOOM ---
-      fCanvas.on('mouse:wheel', function(opt) {
+      fCanvas.on('mouse:wheel', (opt) => {
         const delta = opt.e.deltaY;
         let zoom = fCanvas.getZoom();
         zoom *= 0.999 ** delta;
         if (zoom > 5) zoom = 5;
         if (zoom < 0.1) zoom = 0.1;
-        fCanvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        fCanvas.zoomToPoint(new fabric.Point(opt.e.offsetX, opt.e.offsetY), zoom);
         opt.e.preventDefault();
         opt.e.stopPropagation();
         
@@ -122,40 +122,40 @@ export const PDFCanvas: React.FC = () => {
         }
       });
 
-      fCanvas.on('mouse:down', function(opt) {
+      fCanvas.on('mouse:down', (opt) => {
         const evt = opt.e as MouseEvent;
         if (evt.altKey || evt.button === 1) { // Alt key or middle mouse
-          (this as any).isDragging = true;
-          (this as any).selection = false;
-          (this as any).lastPosX = evt.clientX;
-          (this as any).lastPosY = evt.clientY;
+          (fCanvas as any).isDragging = true;
+          fCanvas.selection = false;
+          (fCanvas as any).lastPosX = evt.clientX;
+          (fCanvas as any).lastPosY = evt.clientY;
         }
       });
 
-      fCanvas.on('mouse:move', function(opt) {
-        if ((this as any).isDragging) {
+      fCanvas.on('mouse:move', (opt) => {
+        if ((fCanvas as any).isDragging) {
           const e = opt.e as MouseEvent;
-          const vpt = this.viewportTransform;
+          const vpt = fCanvas.viewportTransform;
           if (vpt) {
-            vpt[4] += e.clientX - (this as any).lastPosX;
-            vpt[5] += e.clientY - (this as any).lastPosY;
-            this.requestRenderAll();
+            vpt[4] += e.clientX - (fCanvas as any).lastPosX;
+            vpt[5] += e.clientY - (fCanvas as any).lastPosY;
+            fCanvas.requestRenderAll();
             
             if (bgCanvas) {
               bgCanvas.style.transformOrigin = "0 0";
               bgCanvas.style.transform = `matrix(${vpt[0]}, ${vpt[1]}, ${vpt[2]}, ${vpt[3]}, ${vpt[4]}, ${vpt[5]})`;
             }
           }
-          (this as any).lastPosX = e.clientX;
-          (this as any).lastPosY = e.clientY;
+          (fCanvas as any).lastPosX = e.clientX;
+          (fCanvas as any).lastPosY = e.clientY;
         }
       });
 
-      fCanvas.on('mouse:up', function() {
-        const vpt = this.viewportTransform;
-        if (vpt) this.setViewportTransform(vpt);
-        (this as any).isDragging = false;
-        (this as any).selection = true;
+      fCanvas.on('mouse:up', () => {
+        const vpt = fCanvas.viewportTransform;
+        if (vpt) fCanvas.setViewportTransform(vpt);
+        (fCanvas as any).isDragging = false;
+        fCanvas.selection = true;
       });
     };
 
