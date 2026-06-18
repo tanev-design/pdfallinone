@@ -7,6 +7,24 @@ import type { Doc, TextObject, TextRun, FontRecord } from '../../models/Doc';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
+const GOOGLE_FONTS_MAP: Record<string, string> = {
+  'Helvetica': 'Roboto',
+  'Arial': 'Roboto',
+  'Times': 'Merriweather',
+  'Courier': 'Roboto Mono',
+};
+
+function loadGoogleFont(fontFamily: string) {
+  if (typeof document === 'undefined') return;
+  const id = `google-font-${fontFamily.replace(/\s+/g, '-')}`;
+  if (document.getElementById(id)) return;
+  const link = document.createElement('link');
+  link.id = id;
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${fontFamily.replace(/\s+/g, '+')}:wght@400;700&display=swap`;
+  document.head.appendChild(link);
+}
+
 export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
   const loadingTask = pdfjsLib.getDocument({ data: fileBuffer });
   const pdfDocument = await loadingTask.promise;
@@ -23,15 +41,9 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
     const viewport = page.getViewport({ scale: 1.0 });
 
     const textContent = await page.getTextContent();
-    const commonObjs = page.commonObjs; // where fonts are stored
+    const commonObjs = page.commonObjs; 
 
     const textObjects: TextObject[] = [];
-
-    // Process text items. Each item is a run. 
-    // We group them into simple boxes or just make 1 run = 1 object for now.
-    // The spec asks for a simple structure, we'll keep 1 run per box to start with 
-    // unless we need to group by Y-coordinate. Let's do 1 run per box for simplicity of the scene graph
-    // or group adjacent runs.
 
     let lastObj: TextObject | null = null;
 
@@ -48,7 +60,6 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
 
         if (isSameLine && isClose && lastObj) {
           let textToAdd = item.str;
-          // Inject a space if there's a visual gap but no space character
           if (gap > size * 0.15 && !lastObj.runs[0].text.endsWith(' ') && !textToAdd.startsWith(' ')) {
             textToAdd = ' ' + textToAdd;
           }
@@ -57,7 +68,6 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
           continue;
         }
 
-        // Ignore standalone whitespace runs
         if (item.str.trim() === '') continue;
 
         const fontName = item.fontName;
@@ -68,9 +78,20 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
             const fontObj = commonObjs.get(fontName) as any;
             if (fontObj) {
               const family = fontObj.name || fontName;
+              const strippedFamily = family.replace(/^[A-Z]{6}\+/, '');
+              
+              let mappedFamily = 'sans-serif'; // fallback
+              for (const [key, val] of Object.entries(GOOGLE_FONTS_MAP)) {
+                if (strippedFamily.toLowerCase().includes(key.toLowerCase())) {
+                  mappedFamily = val;
+                  loadGoogleFont(val);
+                  break;
+                }
+              }
+
               fontMap.set(fontName, {
                 id: fontName,
-                family: family.replace(/^[A-Z]{6}\+/, ''),
+                family: mappedFamily,
                 weight: 400,
                 style: 'normal',
                 source: { type: 'fallback', matchedFrom: 'system', overrides: { sizeAdjust: '100%', ascentOverride: 'normal', descentOverride: 'normal', lineGapOverride: 'normal' } },

@@ -56,37 +56,60 @@ export const PDFCanvas: React.FC = () => {
       }
 
       const canvasEl = canvasElRef.current;
-      if (!canvasEl) return;
-      canvasEl.width = viewport.width;
-      canvasEl.height = viewport.height;
+      const containerEl = containerRef.current;
+      if (!canvasEl || !containerEl) return;
+      
+      const screenW = containerEl.clientWidth;
+      const screenH = containerEl.clientHeight;
+
+      canvasEl.width = screenW;
+      canvasEl.height = screenH;
 
       const fCanvas = new fabric.Canvas(canvasEl, {
-        width: viewport.width,
-        height: viewport.height,
+        width: screenW,
+        height: screenH,
         preserveObjectStacking: true,
       });
       fabricCanvasRef.current = fCanvas;
+
+      // Center PDF on screen initially
+      const initialPanX = (screenW - viewport.width) / 2;
+      const initialPanY = (screenH - viewport.height) / 2;
+      const initialVpt = [1, 0, 0, 1, initialPanX, initialPanY];
+      fCanvas.setViewportTransform(initialVpt);
+
+      if (bgCanvas) {
+        bgCanvas.style.transformOrigin = "0 0";
+        bgCanvas.style.transform = `matrix(1, 0, 0, 1, ${initialPanX}, ${initialPanY})`;
+      }
+
+      // Handle Resize
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (let entry of entries) {
+          const { width, height } = entry.contentRect;
+          fCanvas.setDimensions({ width, height });
+        }
+      });
+      resizeObserver.observe(containerEl);
 
       // Populate fabric with text objects
       pageModel.objects.forEach((obj) => {
         if (obj.kind === "text") {
           const run = obj.runs[0];
           
-          // Improved positioning: y is baseline in PDF points.
-          // Fabric 'top' expects the top bounding box. 
-          // For simplicity, we approximate ascent as 80% of font size.
-          const top = viewport.height - obj.y - (run.size * 0.8);
+          const fontRecord = doc.fonts.find(f => f.id === run.fontId);
+          const fontFamily = fontRecord ? fontRecord.family : 'sans-serif';
 
           const textObj = new fabric.IText(run.text, {
             left: obj.x,
-            top: top, 
+            top: viewport.height - obj.y, 
             fontSize: run.size,
-            fontFamily: run.fontId,
+            fontFamily: fontFamily,
             fill: `rgb(${run.color.map((c) => c * 255).join(",")})`,
             textAlign: obj.align,
             data: { id: obj.id },
             originX: "left",
-            originY: "top",
+            originY: "bottom",
           });
           fCanvas.add(textObj);
         }
@@ -99,7 +122,7 @@ export const PDFCanvas: React.FC = () => {
           // Convert back
           updateObject(activePage, target.data.id, {
             x: target.left,
-            y: viewport.height - (target.top || 0) - ((target.fontSize || 0) * 0.8), 
+            y: viewport.height - (target.top || 0), 
           });
         }
       });
@@ -175,16 +198,8 @@ export const PDFCanvas: React.FC = () => {
 
   return (
     <div className="pdf-canvas-container" ref={containerRef}>
-      <div className="pdf-canvas-wrapper" style={{ position: "relative" }}>
-        <canvas
-          ref={bgCanvasElRef}
-          style={{ position: "absolute", top: 0, left: 0, zIndex: 0 }}
-        />
-        <canvas
-          ref={canvasElRef}
-          style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }}
-        />
-      </div>
+      <canvas ref={bgCanvasElRef} className="pdf-canvas-bg" />
+      <canvas ref={canvasElRef} className="pdf-canvas-fabric" />
     </div>
   );
 };
