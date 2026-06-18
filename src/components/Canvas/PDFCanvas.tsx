@@ -75,7 +75,7 @@ export const PDFCanvas: React.FC = () => {
       // Center PDF on screen initially
       const initialPanX = (screenW - viewport.width) / 2;
       const initialPanY = (screenH - viewport.height) / 2;
-      const initialVpt = [1, 0, 0, 1, initialPanX, initialPanY];
+      const initialVpt: fabric.TMat2D = [1, 0, 0, 1, initialPanX, initialPanY];
       fCanvas.setViewportTransform(initialVpt);
 
       if (bgCanvas) {
