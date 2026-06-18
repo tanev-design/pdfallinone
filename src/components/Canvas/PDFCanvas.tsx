@@ -33,21 +33,23 @@ export const PDFCanvas: React.FC = () => {
 
       const ctx = bgCanvas.getContext("2d");
       if (ctx) {
-        // Render PDF
-        await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
-        if (!isActive) return;
+        // --- GHOST RENDERING HACK ---
+        // Intercept canvas drawing to prevent original PDF text from being rendered.
+        // This guarantees a pristine background for our editable Fabric.js text!
+        const originalFillText = CanvasRenderingContext2D.prototype.fillText;
+        const originalStrokeText = CanvasRenderingContext2D.prototype.strokeText;
+        
+        CanvasRenderingContext2D.prototype.fillText = function () {};
+        CanvasRenderingContext2D.prototype.strokeText = function () {};
 
-        // Redact original text to prevent ghosting/doubling
-        // We draw white boxes over the original text runs
-        ctx.fillStyle = "white"; // Simple whiteout for now
-        pageModel.objects.forEach((obj) => {
-          if (obj.kind === "text") {
-            const run = obj.runs[0];
-            const top = viewport.height - obj.y - run.size;
-            // A naive bounding box to hide the original text
-            ctx.fillRect(obj.x, top, obj.width, run.size * 1.2);
-          }
-        });
+        try {
+          await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
+        } finally {
+          CanvasRenderingContext2D.prototype.fillText = originalFillText;
+          CanvasRenderingContext2D.prototype.strokeText = originalStrokeText;
+        }
+        
+        if (!isActive) return;
       }
 
       // 2. Setup fabric canvas
