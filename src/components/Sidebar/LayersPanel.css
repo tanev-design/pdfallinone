@@ -1,0 +1,62 @@
+.layers-panel {
+  width: 250px;
+  background-color: #fafafa;
+  border-left: 1px solid #ddd;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.layers-title {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  text-transform: uppercase;
+  color: #666;
+}
+
+.layers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.layer-item {
+  padding: 4px 8px;
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background-color 0.15s ease;
+  cursor: pointer;
+}
+
+.layer-item:hover {
+  background-color: #f0f0f0;
+  border-color: #ddd;
+}
+
+.layer-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.layer-delete {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 4px;
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.layer-delete:hover {
+  opacity: 1;
+}

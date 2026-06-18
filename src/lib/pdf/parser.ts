@@ -33,28 +33,44 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
     // unless we need to group by Y-coordinate. Let's do 1 run per box for simplicity of the scene graph
     // or group adjacent runs.
 
+    let lastObj: TextObject | null = null;
+
     for (const item of textContent.items) {
       if ('str' in item) {
-        // PDF point space origin is bottom-left
-        const transform = item.transform; // [scaleX, skewY, skewX, scaleY, tx, ty]
-        
+        const transform = item.transform; 
         const x = transform[4];
         const y = transform[5];
-        const size = Math.hypot(transform[2], transform[3]) || item.height; // approximate size
+        const size = Math.hypot(transform[2], transform[3]) || item.height;
         
+        const isSameLine = lastObj && Math.abs(lastObj.y - y) < size * 0.3;
+        const gap = lastObj ? x - (lastObj.x + lastObj.width) : Infinity;
+        const isClose = gap > -size * 0.5 && gap < size * 1.5; 
+
+        if (isSameLine && isClose && lastObj) {
+          let textToAdd = item.str;
+          // Inject a space if there's a visual gap but no space character
+          if (gap > size * 0.15 && !lastObj.runs[0].text.endsWith(' ') && !textToAdd.startsWith(' ')) {
+            textToAdd = ' ' + textToAdd;
+          }
+          lastObj.runs[0].text += textToAdd;
+          lastObj.width = (x + item.width) - lastObj.x;
+          continue;
+        }
+
+        // Ignore standalone whitespace runs
+        if (item.str.trim() === '') continue;
+
         const fontName = item.fontName;
         let fontId = fontName;
 
-        // Try to resolve font from commonObjs
         if (fontName && !fontMap.has(fontName)) {
           try {
             const fontObj = commonObjs.get(fontName) as any;
             if (fontObj) {
               const family = fontObj.name || fontName;
-              // Add to fontMap with dummy metrics for now, will be populated by font engine
               fontMap.set(fontName, {
                 id: fontName,
-                family: family.replace(/^[A-Z]{6}\+/, ''), // Strip subset tag
+                family: family.replace(/^[A-Z]{6}\+/, ''),
                 weight: 400,
                 style: 'normal',
                 source: { type: 'fallback', matchedFrom: 'system', overrides: { sizeAdjust: '100%', ascentOverride: 'normal', descentOverride: 'normal', lineGapOverride: 'normal' } },
@@ -71,7 +87,7 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
           text: item.str,
           fontId,
           size,
-          color: [0, 0, 0], // pdfjs color extraction is more complex, default black
+          color: [0, 0, 0],
         };
 
         const textObj: TextObject = {
@@ -79,7 +95,7 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
           kind: 'text',
           x,
           y,
-          rotation: 0, // Should be computed from skew
+          rotation: 0,
           width: item.width,
           runs: [run],
           align: 'left',
@@ -88,6 +104,7 @@ export async function parsePdf(fileBuffer: ArrayBuffer): Promise<Doc> {
         };
 
         textObjects.push(textObj);
+        lastObj = textObj;
       }
     }
 
